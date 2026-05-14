@@ -1,4 +1,4 @@
-# Spirit Grove
+# Spirit Grove Z 
 
 A Roblox experience inspired by *Bee Swarm Simulator*, themed around nature wisps that follow the player and harvest **Essence** from biomes. Players deposit essence at the **World Tree** for **Spirit Shards**, then spend shards on better **Staffs** and more **Wisp Slots**.
 
