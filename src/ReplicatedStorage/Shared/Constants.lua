@@ -50,6 +50,7 @@ Constants.REMOTES = {
     PurchaseResult  = "PurchaseResult",      -- server -> client: success/fail + reason
     RequestAbility  = "RequestAbility",      -- client -> server: fire wisp ability
     AbilityFeedback = "AbilityFeedback",     -- server -> client: ability fired, with metadata for VFX
+    HarvestRejected = "HarvestRejected",     -- server -> client: harvest blocked (e.g. locked biome)
 }
 
 -- Wisp abilities. Each entry is the per-wisp tuning for active abilities.

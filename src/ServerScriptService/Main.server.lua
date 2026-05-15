@@ -19,6 +19,7 @@ require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 
 local Services = ServerScriptService:WaitForChild("Services")
 local WorldBuilder      = require(Services:WaitForChild("WorldBuilder"))
+local DayNightService   = require(Services:WaitForChild("DayNightService"))
 local PlayerDataService = require(Services:WaitForChild("PlayerDataService"))
 local WispService       = require(Services:WaitForChild("WispService"))
 local AbilityService    = require(Services:WaitForChild("AbilityService"))
@@ -28,6 +29,7 @@ local ShopService       = require(Services:WaitForChild("ShopService"))
 -- Build the world FIRST so EssenceService's WorldTree proximity-prompt attaches
 -- to the freshly-built tree (and so players spawn into a populated map).
 WorldBuilder.start()
+DayNightService.start()  -- continuously animates Lighting after WorldBuilder's initial state
 
 PlayerDataService.start()
 WispService.start()

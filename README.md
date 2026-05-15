@@ -88,4 +88,3 @@ D:\roblox game\
 - **Gamepasses** (one-time): 2× Lantern Capacity, +5 Wisp Slots, Auto-Deposit, Cosmetic staff skins.
 - **Developer Products** (consumable): Shard bundles, time-limited 2× harvest boost.
 - **Fair-play rule.** Nothing paid should bypass progression gates — gamepasses *speed up* the loop, they don't skip biome unlocks. Prismatic wisps stay locked behind Ascension regardless of spending.
-

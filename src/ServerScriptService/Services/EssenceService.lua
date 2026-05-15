@@ -61,18 +61,31 @@ local function handleHarvest(player: Player, node: any)
     if not hrp then return end
     if (hrp.Position - node.Position).Magnitude > Constants.HARVEST_RANGE then return end
 
+    -- biome gate check: locked if the player doesn't own enough wisps yet.
+    local profile = PlayerDataService.get(player)
+    if not profile then return end
+    local required = node:GetAttribute("BiomeRequiredWisps") or 0
+    local ownedCount = #profile.ownedWispIds
+    if ownedCount < required then
+        Remotes.get(Constants.REMOTES.HarvestRejected):FireClient(player, {
+            reason = "locked",
+            required = required,
+            owned = ownedCount,
+            position = node.Position,
+        })
+        return
+    end
+
     -- cooldown check (anti-cheat)
     local now = os.clock()
     local last = lastHarvestAt[player] or 0
     if now - last < Constants.HARVEST_COOLDOWN then return end
     lastHarvestAt[player] = now
 
-    -- yield = base + wisp bonus, capped by remaining lantern capacity
-    local profile = PlayerDataService.get(player)
-    if not profile then return end
-
+    -- yield = (base + wisp bonus) * mist buff * biome multiplier
     local mistMult = (AbilityService and AbilityService.getMistMultiplier(player)) or 1
-    local yieldAmt = math.floor((Constants.NODE_BASE_ESSENCE + WispService.totalCollectionBonus(player)) * mistMult)
+    local biomeMult = node:GetAttribute("BiomeMultiplier") or 1
+    local yieldAmt = math.floor((Constants.NODE_BASE_ESSENCE + WispService.totalCollectionBonus(player)) * mistMult * biomeMult)
     local space = math.max(0, profile.lanternCapacity - profile.lanternContents)
     yieldAmt = math.min(yieldAmt, space)
     if yieldAmt <= 0 then return end

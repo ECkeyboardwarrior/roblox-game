@@ -74,6 +74,7 @@ local function aoeHarvest(player: Player, origin: Vector3, radius: number, yield
     local NODE_BASE = Constants.NODE_BASE_ESSENCE
     local wispBonus = WispService.totalCollectionBonus(player)
     local mistMult = AbilityService.getMistMultiplier(player)
+    local ownedCount = #profile.ownedWispIds
 
     local totalAwarded = 0
 
@@ -82,10 +83,15 @@ local function aoeHarvest(player: Player, origin: Vector3, radius: number, yield
         if node:GetAttribute("Depleted") then continue end
         if (node.Position - origin).Magnitude > radius then continue end
 
+        -- Locked biome? Skip silently for AoE — no spam of reject messages.
+        local required = node:GetAttribute("BiomeRequiredWisps") or 0
+        if ownedCount < required then continue end
+
         local space = math.max(0, profile.lanternCapacity - profile.lanternContents)
         if space <= 0 then break end
 
-        local rawYield = (NODE_BASE + wispBonus) * yieldMultiplier * mistMult
+        local biomeMult = node:GetAttribute("BiomeMultiplier") or 1
+        local rawYield = (NODE_BASE + wispBonus) * yieldMultiplier * mistMult * biomeMult
         local yieldAmt = math.min(math.floor(rawYield), space)
         if yieldAmt <= 0 then continue end
 

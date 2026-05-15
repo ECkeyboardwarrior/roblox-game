@@ -50,8 +50,9 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
     end
 end)
 
--- Floating "+N" feedback when the server confirms a harvest.
-Remotes.get(Constants.REMOTES.EssenceAwarded).OnClientEvent:Connect(function(amount: number, worldPos: Vector3)
+-- Reusable floating-text widget. Spawns a short-lived anchor part with a
+-- BillboardGui above the given world position. Animates upward + fades.
+local function floatText(text: string, worldPos: Vector3, color: Color3, sizeOffset: Vector2?)
     local part = Instance.new("Part")
     part.Anchored = true
     part.CanCollide = false
@@ -62,7 +63,7 @@ Remotes.get(Constants.REMOTES.EssenceAwarded).OnClientEvent:Connect(function(amo
     part.Parent = Workspace
 
     local gui = Instance.new("BillboardGui")
-    gui.Size = UDim2.fromOffset(120, 40)
+    gui.Size = sizeOffset and UDim2.fromOffset(sizeOffset.X, sizeOffset.Y) or UDim2.fromOffset(180, 40)
     gui.AlwaysOnTop = true
     gui.Parent = part
 
@@ -70,21 +71,39 @@ Remotes.get(Constants.REMOTES.EssenceAwarded).OnClientEvent:Connect(function(amo
     label.BackgroundTransparency = 1
     label.Size = UDim2.fromScale(1, 1)
     label.Font = Enum.Font.GothamBold
-    label.Text = "+" .. tostring(amount)
+    label.Text = text
     label.TextScaled = true
-    label.TextColor3 = Color3.fromRGB(255, 240, 180)
+    label.TextColor3 = color
     label.TextStrokeTransparency = 0.2
     label.Parent = gui
 
-    -- Animate upward + fade, then clean up.
     task.spawn(function()
         local start = os.clock()
-        while os.clock() - start < 1 do
-            local t = os.clock() - start
+        while os.clock() - start < 1.2 do
+            local t = (os.clock() - start) / 1.2
             part.Position = part.Position + Vector3.new(0, 0.04, 0)
             label.TextTransparency = t
             task.wait()
         end
         part:Destroy()
     end)
+end
+
+-- "+N" on successful harvest
+Remotes.get(Constants.REMOTES.EssenceAwarded).OnClientEvent:Connect(function(amount: number, worldPos: Vector3)
+    floatText("+" .. tostring(amount), worldPos, Color3.fromRGB(255, 240, 180), nil)
+end)
+
+-- "🔒 Requires N wisps" when biome is locked
+Remotes.get(Constants.REMOTES.HarvestRejected).OnClientEvent:Connect(function(payload)
+    if typeof(payload) ~= "table" or not payload.position then return end
+    if payload.reason == "locked" then
+        local req = payload.required or 0
+        floatText(
+            string.format("🔒 Requires %d wisps", req),
+            payload.position,
+            Color3.fromRGB(255, 130, 130),
+            Vector2.new(240, 40)
+        )
+    end
 end)
