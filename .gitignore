@@ -1,0 +1,21 @@
+# Roblox / Rojo
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# Toolchain binaries (everyone installs these themselves)
+rojo.exe
+*.zip
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# Build output
+build/
+out/
