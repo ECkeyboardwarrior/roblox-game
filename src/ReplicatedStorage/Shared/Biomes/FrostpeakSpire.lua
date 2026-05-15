@@ -1,0 +1,16 @@
+return {
+    id = "frostpeak_spire",
+    displayName = "Frostpeak Spire",
+    center = Vector3.new(-130, 4, -320),
+    radius = 65,
+    nodeCount = 20,
+    nodeColor = Color3.fromRGB(170, 220, 255),
+    nodeMaterial = Enum.Material.Neon,
+    nodeShape = Enum.PartType.Cylinder,
+    nodeSize = Vector3.new(4, 6, 6),
+    requiredWisps = 12,
+    essenceMultiplier = 6,
+    groundColor = Color3.fromRGB(195, 210, 225),
+    decorStyle = "frostpeak",
+    hasCottage = true,
+}

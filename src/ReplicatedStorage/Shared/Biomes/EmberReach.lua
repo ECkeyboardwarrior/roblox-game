@@ -1,0 +1,16 @@
+return {
+    id = "ember_reach",
+    displayName = "Ember Reach",
+    center = Vector3.new(-220, 4, 130),
+    radius = 55,
+    nodeCount = 18,
+    nodeColor = Color3.fromRGB(255, 130, 80),
+    nodeMaterial = Enum.Material.Neon,
+    nodeShape = Enum.PartType.Cylinder,
+    nodeSize = Vector3.new(4, 5, 5),
+    requiredWisps = 8,
+    essenceMultiplier = 4,
+    groundColor = Color3.fromRGB(85, 55, 50),
+    decorStyle = "ember",
+    hasCottage = false,
+}

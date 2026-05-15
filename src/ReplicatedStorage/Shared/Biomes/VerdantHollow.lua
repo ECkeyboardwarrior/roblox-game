@@ -1,0 +1,16 @@
+return {
+    id = "verdant_hollow",
+    displayName = "Verdant Hollow",
+    center = Vector3.new(220, 4, 60),
+    radius = 50,
+    nodeCount = 16,
+    nodeColor = Color3.fromRGB(140, 255, 170),
+    nodeMaterial = Enum.Material.Neon,
+    nodeShape = Enum.PartType.Cylinder,
+    nodeSize = Vector3.new(3.5, 4.5, 4.5),
+    requiredWisps = 3,
+    essenceMultiplier = 2,
+    groundColor = Color3.fromRGB(68, 115, 70),
+    decorStyle = "verdant",
+    hasCottage = true,
+}

@@ -1,0 +1,16 @@
+return {
+    id = "glimmer_glade",
+    displayName = "Glimmer Glade",
+    center = Vector3.new(0, 4, -60),
+    radius = 40,
+    nodeCount = 14,
+    nodeColor = Color3.fromRGB(150, 220, 255),
+    nodeMaterial = Enum.Material.Neon,
+    nodeShape = Enum.PartType.Cylinder,
+    nodeSize = Vector3.new(3, 4, 4),
+    requiredWisps = 0,
+    essenceMultiplier = 1,
+    groundColor = Color3.fromRGB(80, 110, 125),
+    decorStyle = "glimmer",
+    hasCottage = false,
+}

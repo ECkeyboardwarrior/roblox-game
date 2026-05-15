@@ -49,88 +49,8 @@ type Biome = {
     hasCottage: boolean,
 }
 
-local BIOMES: { Biome } = {
-    {
-        id = "glimmer_glade",
-        displayName = "Glimmer Glade",
-        center = Vector3.new(0, 4, -60),
-        radius = 40,
-        nodeCount = 14,
-        nodeColor = Color3.fromRGB(150, 220, 255),
-        nodeMaterial = Enum.Material.Neon,
-        nodeShape = Enum.PartType.Cylinder,
-        nodeSize = Vector3.new(3, 4, 4),
-        requiredWisps = 0,
-        essenceMultiplier = 1,
-        groundColor = Color3.fromRGB(80, 110, 125),
-        decorStyle = "glimmer",
-        hasCottage = false,
-    },
-    {
-        id = "verdant_hollow",
-        displayName = "Verdant Hollow",
-        center = Vector3.new(220, 4, 60),
-        radius = 50,
-        nodeCount = 16,
-        nodeColor = Color3.fromRGB(140, 255, 170),
-        nodeMaterial = Enum.Material.Neon,
-        nodeShape = Enum.PartType.Cylinder,
-        nodeSize = Vector3.new(3.5, 4.5, 4.5),
-        requiredWisps = 3,
-        essenceMultiplier = 2,
-        groundColor = Color3.fromRGB(68, 115, 70),
-        decorStyle = "verdant",
-        hasCottage = true,
-    },
-    {
-        id = "ember_reach",
-        displayName = "Ember Reach",
-        center = Vector3.new(-220, 4, 130),
-        radius = 55,
-        nodeCount = 18,
-        nodeColor = Color3.fromRGB(255, 130, 80),
-        nodeMaterial = Enum.Material.Neon,
-        nodeShape = Enum.PartType.Cylinder,
-        nodeSize = Vector3.new(4, 5, 5),
-        requiredWisps = 8,
-        essenceMultiplier = 4,
-        groundColor = Color3.fromRGB(85, 55, 50),
-        decorStyle = "ember",
-        hasCottage = false,
-    },
-    {
-        id = "whispering_wood",
-        displayName = "Whispering Wood",
-        center = Vector3.new(80, 4, 260),
-        radius = 60,
-        nodeCount = 18,
-        nodeColor = Color3.fromRGB(200, 130, 200),
-        nodeMaterial = Enum.Material.Neon,
-        nodeShape = Enum.PartType.Cylinder,
-        nodeSize = Vector3.new(3.5, 5, 5),
-        requiredWisps = 6,
-        essenceMultiplier = 3,
-        groundColor = Color3.fromRGB(50, 65, 55),
-        decorStyle = "whispering",
-        hasCottage = true,
-    },
-    {
-        id = "frostpeak_spire",
-        displayName = "Frostpeak Spire",
-        center = Vector3.new(-130, 4, -320),
-        radius = 65,
-        nodeCount = 20,
-        nodeColor = Color3.fromRGB(170, 220, 255),
-        nodeMaterial = Enum.Material.Neon,
-        nodeShape = Enum.PartType.Cylinder,
-        nodeSize = Vector3.new(4, 6, 6),
-        requiredWisps = 12,
-        essenceMultiplier = 6,
-        groundColor = Color3.fromRGB(195, 210, 225),
-        decorStyle = "frostpeak",
-        hasCottage = true,
-    },
-}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local BIOMES: { Biome } = require(ReplicatedStorage.Shared.BiomeRegistry) :: any
 
 -- =========================================================================
 -- Helpers
@@ -246,67 +166,251 @@ local function makeWorldTree(): Model
     local model = Instance.new("Model")
     model.Name = "WorldTree"
 
-    for i = 1, 5 do
-        local root = Instance.new("Part")
-        root.Anchored = true
-        root.CanCollide = false
-        root.Shape = Enum.PartType.Cylinder
-        root.Size = Vector3.new(8, 4, 4)
-        local angle = (i / 5) * math.pi * 2
-        root.Position = Vector3.new(math.cos(angle) * 5, 2, math.sin(angle) * 5)
-        root.Orientation = Vector3.new(0, math.deg(-angle), 70)
-        root.Material = Enum.Material.Wood
-        root.Color = Color3.fromRGB(75, 50, 35)
-        root.Parent = model
-    end
+    local rng = Random.new(1234) -- deterministic for the tree
 
+    -- Core Trunk
+    local trunkHeight = 70
+    local trunkRadius = 11
+    
     local trunk = Instance.new("Part")
     trunk.Name = "Trunk"
     trunk.Anchored = true
     trunk.CanCollide = true
-    trunk.Size = Vector3.new(10, 36, 10)
-    trunk.Position = Vector3.new(0, 18, 0)
+    trunk.Shape = Enum.PartType.Cylinder
+    trunk.Size = Vector3.new(trunkHeight, trunkRadius * 2, trunkRadius * 2)
+    trunk.Position = Vector3.new(0, trunkHeight / 2, 0)
+    trunk.Orientation = Vector3.new(0, 0, 90)
     trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(80, 55, 40)
+    trunk.Color = Color3.fromRGB(75, 50, 35)
     trunk.Parent = model
 
-    local canopySpheres = {
-        { offset = Vector3.new(0, 42, 0),   size = 30, color = Color3.fromRGB(120, 220, 140), transparency = 0.1 },
-        { offset = Vector3.new(9, 38, 5),   size = 19, color = Color3.fromRGB(140, 230, 160), transparency = 0.15 },
-        { offset = Vector3.new(-8, 39, -6), size = 21, color = Color3.fromRGB(130, 225, 150), transparency = 0.12 },
-        { offset = Vector3.new(4, 46, -8),  size = 16, color = Color3.fromRGB(150, 240, 170), transparency = 0.18 },
-        { offset = Vector3.new(-5, 45, 7),  size = 15, color = Color3.fromRGB(135, 230, 155), transparency = 0.2 },
-    }
-    for _, c in canopySpheres do
-        local canopy = Instance.new("Part")
-        canopy.Anchored = true
-        canopy.CanCollide = false
-        canopy.Shape = Enum.PartType.Ball
-        canopy.Size = Vector3.new(c.size, c.size, c.size)
-        canopy.Position = c.offset
-        canopy.Material = Enum.Material.LeafyGrass
-        canopy.Color = c.color
-        canopy.Transparency = c.transparency
-        canopy.CastShadow = false
-        canopy.Parent = model
+    -- Bark Ridges & Knots
+    local ridgeCount = 14
+    for i = 1, ridgeCount do
+        if i == 1 or i == ridgeCount then continue end
+        
+        local angle = (i / ridgeCount) * math.pi * 2
+        local ridge = Instance.new("Part")
+        ridge.Anchored = true
+        ridge.CanCollide = true
+        ridge.Shape = Enum.PartType.Cylinder
+        local height = rng:NextNumber(trunkHeight * 0.5, trunkHeight * 0.95)
+        local thick = rng:NextNumber(3, 6)
+        ridge.Size = Vector3.new(height, thick, thick)
+        local leanAngle = rng:NextNumber(2, 6)
+        
+        local r = trunkRadius - 1
+        ridge.Position = Vector3.new(math.cos(angle) * r, height / 2, math.sin(angle) * r)
+        ridge.Orientation = Vector3.new(math.deg(-leanAngle), math.deg(-angle), 90)
+        ridge.Material = Enum.Material.Wood
+        ridge.Color = Color3.fromRGB(70, 45, 30)
+        ridge.Parent = model
+
+        -- Knots
+        if rng:NextNumber() < 0.4 then
+            local knot = Instance.new("Part")
+            knot.Anchored = true
+            knot.CanCollide = false
+            knot.Shape = Enum.PartType.Ball
+            local kSize = rng:NextNumber(2, 4)
+            knot.Size = Vector3.new(kSize, kSize, kSize)
+            knot.Position = ridge.Position + Vector3.new(0, rng:NextNumber(-height/3, height/3), 0) + Vector3.new(math.cos(angle)*2, 0, math.sin(angle)*2)
+            knot.Material = Enum.Material.Wood
+            knot.Color = Color3.fromRGB(65, 40, 25)
+            knot.Parent = model
+        end
     end
 
-    for i = 1, 12 do
+    -- Fractal Roots
+    local function createRoot(cframe: CFrame, size: Vector3, iterations: number)
+        if iterations <= 0 then return end
+        
+        local rootPart = Instance.new("Part")
+        rootPart.Anchored = true
+        rootPart.CanCollide = true
+        rootPart.Shape = Enum.PartType.Cylinder
+        rootPart.Size = size
+        rootPart.CFrame = cframe
+        rootPart.Material = Enum.Material.Wood
+        rootPart.Color = Color3.fromRGB(65, 40, 25)
+        rootPart.Parent = model
+
+        for j = 1, 2 do
+            local newSize = Vector3.new(size.X * rng:NextNumber(0.6, 0.8), size.Y * 0.7, size.Z * 0.7)
+            local pitch = math.rad(rng:NextNumber(5, 25)) -- bend downwards into ground
+            local yaw = math.rad(rng:NextNumber(-30, 30))
+            if j == 1 then yaw = math.rad(rng:NextNumber(15, 40)) else yaw = math.rad(rng:NextNumber(-40, -15)) end
+            
+            local nextCFrame = cframe * CFrame.new(size.X/2, 0, 0) * CFrame.Angles(0, yaw, -pitch) * CFrame.new(newSize.X/2, 0, 0)
+            createRoot(nextCFrame, newSize, iterations - 1)
+        end
+    end
+
+    for i = 1, 10 do
+        local angle = (i / 10) * math.pi * 2
+        local rAngle = angle + rng:NextNumber(-0.1, 0.1)
+        local baseCFrame = CFrame.new(Vector3.new(math.cos(rAngle) * 10, 1.5, math.sin(rAngle) * 10)) * CFrame.Angles(0, -rAngle, 0) * CFrame.Angles(0, 0, 0)
+        createRoot(baseCFrame, Vector3.new(rng:NextNumber(12, 18), 6, 6), 3)
+    end
+
+    -- Great Deku Face
+    local faceZ = -(trunkRadius - 0.5)
+    
+    local mouth = Instance.new("Part")
+    mouth.Anchored = true
+    mouth.CanCollide = true
+    mouth.Size = Vector3.new(10, 14, 4)
+    mouth.Position = Vector3.new(0, 7, faceZ)
+    mouth.Material = Enum.Material.SmoothPlastic
+    mouth.Color = Color3.fromRGB(15, 10, 5)
+    mouth.Parent = model
+    
+    local nose = Instance.new("Part")
+    nose.Anchored = true
+    nose.CanCollide = true
+    nose.Size = Vector3.new(5, 9, 5)
+    nose.Position = Vector3.new(0, 20, faceZ - 1.5)
+    nose.Orientation = Vector3.new(-10, 0, 0)
+    nose.Material = Enum.Material.Wood
+    nose.Color = Color3.fromRGB(85, 60, 40)
+    nose.Parent = model
+
+    local function makeStache(offsetX, rotZ, startY)
+        for j = 0, 2 do
+            local stache = Instance.new("Part")
+            stache.Anchored = true
+            stache.CanCollide = false
+            stache.Size = Vector3.new(5, 2.5, 3)
+            local drop = j * 1.5
+            local pushX = (j * 2) * (offsetX > 0 and 1 or -1)
+            stache.Position = Vector3.new(offsetX + pushX, startY - drop, faceZ - 0.5)
+            stache.Orientation = Vector3.new(0, 0, rotZ + (j * 10 * (offsetX > 0 and -1 or 1)))
+            stache.Material = Enum.Material.LeafyGrass
+            stache.Color = Color3.fromRGB(100, 180, 100)
+            stache.Parent = model
+        end
+    end
+    makeStache(-3.5, 25, 15)
+    makeStache(3.5, -25, 15)
+
+    for i = -1, 1, 2 do
+        local eye = Instance.new("Part")
+        eye.Anchored = true
+        eye.CanCollide = false
+        eye.Shape = Enum.PartType.Ball
+        eye.Size = Vector3.new(3, 3, 3)
+        eye.Position = Vector3.new(i * 6, 24, faceZ)
+        eye.Material = Enum.Material.Neon
+        eye.Color = Color3.fromRGB(255, 230, 100)
+        eye.Parent = model
+        
+        local brow = Instance.new("Part")
+        brow.Anchored = true
+        brow.CanCollide = true
+        brow.Size = Vector3.new(5, 1.5, 3)
+        brow.Position = Vector3.new(i * 6, 26, faceZ - 0.5)
+        brow.Orientation = Vector3.new(10, 0, i * 15)
+        brow.Material = Enum.Material.Wood
+        brow.Color = Color3.fromRGB(70, 45, 30)
+        brow.Parent = model
+
+        local pl = Instance.new("PointLight")
+        pl.Color = eye.Color
+        pl.Range = 20
+        pl.Brightness = 2.5
+        pl.Parent = eye
+    end
+
+    -- Leaf Cluster Generator
+    local function makeLeafCluster(cframe: CFrame, radius: number)
+        local clusterCount = math.random(4, 7)
+        local baseColor = Color3.fromRGB(110, 200, 120)
+        
+        for i = 1, clusterCount do
+            local leaf = Instance.new("Part")
+            leaf.Anchored = true
+            leaf.CanCollide = false
+            leaf.Shape = Enum.PartType.Ball
+            
+            local s = rng:NextNumber(radius * 0.6, radius * 1.2)
+            leaf.Size = Vector3.new(s, s, s)
+            
+            local offset = Vector3.new(
+                rng:NextNumber(-radius*0.4, radius*0.4),
+                rng:NextNumber(-radius*0.2, radius*0.5),
+                rng:NextNumber(-radius*0.4, radius*0.4)
+            )
+            leaf.CFrame = cframe * CFrame.new(offset)
+            
+            local jitter = rng:NextInteger(-15, 15)
+            leaf.Color = Color3.fromRGB(
+                math.clamp(baseColor.R*255 + jitter, 0, 255),
+                math.clamp(baseColor.G*255 + jitter, 0, 255),
+                math.clamp(baseColor.B*255 + jitter, 0, 255)
+            )
+            leaf.Material = Enum.Material.LeafyGrass
+            leaf.CastShadow = false
+            leaf.Parent = model
+        end
+    end
+
+    -- Fractal Canopy Branches
+    local function createCanopyBranch(cframe: CFrame, size: Vector3, iterations: number)
+        if iterations <= 0 then
+            makeLeafCluster(cframe, size.X * 2.5)
+            return
+        end
+        
+        local branch = Instance.new("Part")
+        branch.Anchored = true
+        branch.CanCollide = true
+        branch.Shape = Enum.PartType.Cylinder
+        branch.Size = size
+        branch.CFrame = cframe
+        branch.Material = Enum.Material.Wood
+        branch.Color = Color3.fromRGB(70, 45, 30)
+        branch.Parent = model
+
+        for j = 1, 2 do
+            local newSize = Vector3.new(size.X * rng:NextNumber(0.6, 0.8), size.Y * 0.7, size.Z * 0.7)
+            local pitch = math.rad(rng:NextNumber(-10, 30)) -- curve upwards
+            local yaw = math.rad(rng:NextNumber(-45, 45))
+            if j == 1 then yaw = math.rad(rng:NextNumber(20, 50)) else yaw = math.rad(rng:NextNumber(-50, -20)) end
+            
+            local nextCFrame = cframe * CFrame.new(size.X/2, 0, 0) * CFrame.Angles(0, yaw, pitch) * CFrame.new(newSize.X/2, 0, 0)
+            createCanopyBranch(nextCFrame, newSize, iterations - 1)
+        end
+        
+        if rng:NextNumber() < 0.4 then
+            makeLeafCluster(cframe * CFrame.new(size.X/4, 0, 0), size.X * 1.5)
+        end
+    end
+
+    for i = 1, 6 do
+        local angle = (i / 6) * math.pi * 2
+        local baseCFrame = CFrame.new(Vector3.new(math.cos(angle) * 8, trunkHeight - 8, math.sin(angle) * 8)) * CFrame.Angles(0, -angle, math.rad(45))
+        createCanopyBranch(baseCFrame, Vector3.new(28, 6, 6), 4)
+    end
+    
+    makeLeafCluster(CFrame.new(0, trunkHeight + 5, 0), 25)
+
+    -- Motes (ambient fireflies)
+    for i = 1, 30 do
         local mote = Instance.new("Part")
         mote.Anchored = true
         mote.CanCollide = false
         mote.CanQuery = false
         mote.Shape = Enum.PartType.Ball
-        mote.Size = Vector3.new(0.9, 0.9, 0.9)
+        mote.Size = Vector3.new(1.2, 1.2, 1.2)
         mote.Material = Enum.Material.Neon
         mote.Color = Color3.fromRGB(220, 255, 200)
-        local theta = (i / 12) * math.pi * 2
-        local r = 16 + (i % 2) * 4
-        mote.Position = Vector3.new(math.cos(theta) * r, 40 + math.sin(theta * 1.7) * 5, math.sin(theta) * r)
+        local theta = (i / 30) * math.pi * 2
+        local r = rng:NextNumber(25, 45)
+        mote.Position = Vector3.new(math.cos(theta) * r, trunkHeight + math.sin(theta * 1.7) * 8 + rng:NextNumber(-5, 15), math.sin(theta) * r)
         mote.CastShadow = false
         local pl = Instance.new("PointLight")
         pl.Color = mote.Color
-        pl.Range = 12
+        pl.Range = 14
         pl.Brightness = 1.8
         pl.Parent = mote
         mote.Parent = model
@@ -350,175 +454,86 @@ local function tintLeaves(base: Color3, rng: Random): Color3
     return Color3.fromRGB(jitter(base.R * 255), jitter(base.G * 255), jitter(base.B * 255))
 end
 
-local function makeOakTree(position: Vector3, scale: number, parent: Instance, rng: Random)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(2 * scale, 9 * scale, 2 * scale)
-    trunk.Position = position + Vector3.new(0, 4.5 * scale, 0)
-    trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(68, 48, 35)
-    trunk.CastShadow = true
-    trunk.Parent = parent
+local function createBranch(cframe: CFrame, size: Vector3, iterations: number, parent: Instance, rng: Random, woodColor: Color3, leafColor: Color3?, leafMaterial: Enum.Material?, woodMaterial: Enum.Material?)
+    if iterations <= 0 then return end
+    
+    local branch = Instance.new("Part")
+    branch.Size = size
+    branch.Anchored = true
+    branch.CanCollide = false
+    branch.CFrame = cframe
+    branch.Material = woodMaterial or Enum.Material.Wood
+    branch.Color = woodColor
+    branch.CastShadow = true
+    branch.Parent = parent
 
-    local leafBase = Color3.fromRGB(75, 130, 70)
-    for i = 1, 3 do
-        local canopy = Instance.new("Part")
-        canopy.Anchored = true
-        canopy.CanCollide = false
-        canopy.Shape = Enum.PartType.Ball
-        canopy.Size = Vector3.new(8 * scale, 8 * scale, 8 * scale) * (i == 1 and 1 or 0.85)
-        canopy.Position = position + Vector3.new(
-            (i - 2) * scale * 1.6,
-            (10 + i * 0.7) * scale,
-            ((i + 1) % 2) * scale * 1.6 - scale * 0.8
-        )
-        canopy.Material = Enum.Material.LeafyGrass
-        canopy.Color = tintLeaves(leafBase, rng)
-        canopy.CastShadow = true
-        canopy.Parent = parent
+    -- Attach leaves to the ends of branches if requested
+    if iterations == 1 and leafColor then
+        local leaves = Instance.new("Part")
+        leaves.Shape = Enum.PartType.Ball
+        leaves.Size = Vector3.new(size.Y * 1.8, size.Y * 1.8, size.Y * 1.8)
+        leaves.CFrame = cframe * CFrame.new(0, size.Y/2, 0)
+        leaves.Color = tintLeaves(leafColor, rng)
+        leaves.Material = leafMaterial or Enum.Material.LeafyGrass
+        leaves.Anchored = true
+        leaves.CanCollide = false
+        leaves.Parent = parent
     end
+
+    -- Recursive call for new branches
+    for i = 1, 2 do
+        local newSize = size * 0.7
+        
+        -- Generate random angles to split the branch
+        local angleX = math.rad(rng:NextNumber(-20, 20))
+        local angleY = math.rad(rng:NextNumber(-45, 45))
+        local angleZ
+        if i == 1 then
+            angleZ = math.rad(rng:NextNumber(15, 35))
+        else
+            angleZ = math.rad(rng:NextNumber(-35, -15))
+        end
+        
+        local nextCFrame = cframe * CFrame.new(0, size.Y/2, 0) * CFrame.Angles(angleX, angleY, angleZ) * CFrame.new(0, newSize.Y/2, 0)
+        createBranch(nextCFrame, newSize, iterations - 1, parent, rng, woodColor, leafColor, leafMaterial, woodMaterial)
+    end
+end
+
+local function makeOakTree(position: Vector3, scale: number, parent: Instance, rng: Random)
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 4.5 * scale, 0))
+    local baseSize = Vector3.new(2 * scale, 9 * scale, 2 * scale)
+    createBranch(baseCFrame, baseSize, 4, parent, rng, Color3.fromRGB(68, 48, 35), Color3.fromRGB(75, 130, 70))
 end
 
 local function makePineTree(position: Vector3, scale: number, parent: Instance, rng: Random)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(1.4 * scale, 8 * scale, 1.4 * scale)
-    trunk.Position = position + Vector3.new(0, 4 * scale, 0)
-    trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(55, 38, 28)
-    trunk.CastShadow = true
-    trunk.Parent = parent
-
-    local leafBase = Color3.fromRGB(40, 75, 45)
-    for i = 0, 4 do
-        local tier = Instance.new("Part")
-        tier.Anchored = true
-        tier.CanCollide = false
-        tier.Shape = Enum.PartType.Ball
-        local tierScale = (6 - i * 1.0) * scale
-        tier.Size = Vector3.new(tierScale, tierScale * 0.55, tierScale)
-        tier.Position = position + Vector3.new(0, (7 + i * 2.6) * scale, 0)
-        tier.Material = Enum.Material.LeafyGrass
-        tier.Color = tintLeaves(leafBase, rng)
-        tier.CastShadow = true
-        tier.Parent = parent
-    end
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 4 * scale, 0))
+    local baseSize = Vector3.new(1.4 * scale, 8 * scale, 1.4 * scale)
+    createBranch(baseCFrame, baseSize, 5, parent, rng, Color3.fromRGB(55, 38, 28), Color3.fromRGB(40, 75, 45))
 end
 
 local function makeWillowTree(position: Vector3, scale: number, parent: Instance, rng: Random)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(2.2 * scale, 10 * scale, 2.2 * scale)
-    trunk.Position = position + Vector3.new(0, 5 * scale, 0)
-    trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(60, 50, 40)
-    trunk.CastShadow = true
-    trunk.Parent = parent
-
-    -- Droopy canopy: 4 lower spheres around a central one
-    local leafBase = Color3.fromRGB(90, 140, 95)
-    for i = 1, 5 do
-        local canopy = Instance.new("Part")
-        canopy.Anchored = true
-        canopy.CanCollide = false
-        canopy.Shape = Enum.PartType.Ball
-        canopy.Size = Vector3.new(6 * scale, 5 * scale, 6 * scale)
-        local theta = ((i - 1) / 4) * math.pi * 2
-        local r = (i == 5) and 0 or 3.5
-        canopy.Position = position + Vector3.new(
-            math.cos(theta) * r * scale,
-            (10 + (i == 5 and 1 or 0)) * scale,
-            math.sin(theta) * r * scale
-        )
-        canopy.Material = Enum.Material.LeafyGrass
-        canopy.Color = tintLeaves(leafBase, rng)
-        canopy.CastShadow = true
-        canopy.Parent = parent
-    end
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 5 * scale, 0))
+    local baseSize = Vector3.new(2.2 * scale, 10 * scale, 2.2 * scale)
+    createBranch(baseCFrame, baseSize, 4, parent, rng, Color3.fromRGB(60, 50, 40), Color3.fromRGB(90, 140, 95))
 end
 
 local function makeAspenTree(position: Vector3, scale: number, parent: Instance, rng: Random)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(1.2 * scale, 14 * scale, 1.2 * scale)
-    trunk.Position = position + Vector3.new(0, 7 * scale, 0)
-    trunk.Material = Enum.Material.WoodPlanks
-    trunk.Color = Color3.fromRGB(210, 210, 200)
-    trunk.CastShadow = true
-    trunk.Parent = parent
-
-    local leafBase = Color3.fromRGB(130, 220, 140)
-    for i = 1, 2 do
-        local canopy = Instance.new("Part")
-        canopy.Anchored = true
-        canopy.CanCollide = false
-        canopy.Shape = Enum.PartType.Ball
-        canopy.Size = Vector3.new(5.5 * scale, 7 * scale, 5.5 * scale)
-        canopy.Position = position + Vector3.new(0, (14 + i * 2.2) * scale, 0)
-        canopy.Material = Enum.Material.LeafyGrass
-        canopy.Color = tintLeaves(leafBase, rng)
-        canopy.CastShadow = true
-        canopy.Parent = parent
-    end
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 7 * scale, 0))
+    local baseSize = Vector3.new(1.2 * scale, 14 * scale, 1.2 * scale)
+    createBranch(baseCFrame, baseSize, 4, parent, rng, Color3.fromRGB(210, 210, 200), Color3.fromRGB(130, 220, 140), Enum.Material.LeafyGrass, Enum.Material.WoodPlanks)
 end
 
 local function makeBareTree(position: Vector3, scale: number, parent: Instance, rng: Random)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(1.6 * scale, 11 * scale, 1.6 * scale)
-    trunk.Position = position + Vector3.new(0, 5.5 * scale, 0)
-    trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(38, 30, 25)
-    trunk.CastShadow = true
-    trunk.Parent = parent
-
-    for i = 1, 5 do
-        local branch = Instance.new("Part")
-        branch.Anchored = true
-        branch.CanCollide = false
-        branch.Size = Vector3.new(0.6 * scale, 3.5 * scale, 0.6 * scale)
-        local angle = rng:NextNumber(0, math.pi * 2)
-        branch.Position = position + Vector3.new(
-            math.cos(angle) * scale * 1.2,
-            (9 + i * 0.6) * scale,
-            math.sin(angle) * scale * 1.2
-        )
-        branch.Orientation = Vector3.new(math.deg(angle * 0.4), math.deg(angle), rng:NextInteger(15, 45))
-        branch.Material = Enum.Material.Wood
-        branch.Color = Color3.fromRGB(38, 30, 25)
-        branch.Parent = parent
-    end
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 5.5 * scale, 0))
+    local baseSize = Vector3.new(1.6 * scale, 11 * scale, 1.6 * scale)
+    createBranch(baseCFrame, baseSize, 4, parent, rng, Color3.fromRGB(38, 30, 25))
 end
 
 local function makeSnowPine(position: Vector3, scale: number, parent: Instance)
-    local trunk = Instance.new("Part")
-    trunk.Anchored = true
-    trunk.CanCollide = false
-    trunk.Size = Vector3.new(1.4 * scale, 8 * scale, 1.4 * scale)
-    trunk.Position = position + Vector3.new(0, 4 * scale, 0)
-    trunk.Material = Enum.Material.Wood
-    trunk.Color = Color3.fromRGB(60, 40, 30)
-    trunk.CastShadow = true
-    trunk.Parent = parent
-
-    for i = 0, 4 do
-        local tier = Instance.new("Part")
-        tier.Anchored = true
-        tier.CanCollide = false
-        tier.Shape = Enum.PartType.Ball
-        local tierScale = (6 - i * 1.0) * scale
-        tier.Size = Vector3.new(tierScale, tierScale * 0.6, tierScale)
-        tier.Position = position + Vector3.new(0, (7 + i * 2.6) * scale, 0)
-        tier.Material = Enum.Material.Snow
-        tier.Color = Color3.fromRGB(225, 235, 245)
-        tier.CastShadow = true
-        tier.Parent = parent
-    end
+    local rng = Random.new()
+    local baseCFrame = CFrame.new(position + Vector3.new(0, 4 * scale, 0))
+    local baseSize = Vector3.new(1.4 * scale, 8 * scale, 1.4 * scale)
+    createBranch(baseCFrame, baseSize, 5, parent, rng, Color3.fromRGB(60, 40, 30), Color3.fromRGB(225, 235, 245), Enum.Material.Snow)
 end
 
 -- =========================================================================

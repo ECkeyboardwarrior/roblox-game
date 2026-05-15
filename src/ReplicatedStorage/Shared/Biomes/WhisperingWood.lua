@@ -1,0 +1,16 @@
+return {
+    id = "whispering_wood",
+    displayName = "Whispering Wood",
+    center = Vector3.new(80, 4, 260),
+    radius = 60,
+    nodeCount = 18,
+    nodeColor = Color3.fromRGB(200, 130, 200),
+    nodeMaterial = Enum.Material.Neon,
+    nodeShape = Enum.PartType.Cylinder,
+    nodeSize = Vector3.new(3.5, 5, 5),
+    requiredWisps = 6,
+    essenceMultiplier = 3,
+    groundColor = Color3.fromRGB(50, 65, 55),
+    decorStyle = "whispering",
+    hasCottage = true,
+}
