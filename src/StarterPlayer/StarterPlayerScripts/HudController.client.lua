@@ -111,6 +111,34 @@ fillCorner.Parent = barFill
 
 local wispsLabel = makeLabel(4, "Wisps")
 
+-- HP row (added on top of the existing layout via LayoutOrder)
+local hpLabel = makeLabel(5, "HP")
+
+local hpBarFrame = Instance.new("Frame")
+hpBarFrame.Name = "HpBar"
+hpBarFrame.LayoutOrder = 6
+hpBarFrame.Size = UDim2.new(1, 0, 0, 10)
+hpBarFrame.BackgroundColor3 = Color3.fromRGB(60, 40, 40)
+hpBarFrame.BorderSizePixel = 0
+hpBarFrame.Parent = panel
+
+local hpBarCorner = Instance.new("UICorner")
+hpBarCorner.CornerRadius = UDim.new(1, 0)
+hpBarCorner.Parent = hpBarFrame
+
+local hpFill = Instance.new("Frame")
+hpFill.Name = "Fill"
+hpFill.Size = UDim2.fromScale(1, 1)
+hpFill.BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+hpFill.BorderSizePixel = 0
+hpFill.Parent = hpBarFrame
+local hpFillCorner = Instance.new("UICorner")
+hpFillCorner.CornerRadius = UDim.new(1, 0)
+hpFillCorner.Parent = hpFill
+
+-- Auto-resize the panel to fit the new rows
+panel.Size = UDim2.fromOffset(260, 168)
+
 -- ---------- data + redraw ----------
 
 local function num(name: string, default: number): number
@@ -140,6 +168,36 @@ end
 if profile then
     profile.AttributeChanged:Connect(redraw)
 end
+
+-- ---------- HP tracking ----------
+
+local function refreshHp(humanoid: Humanoid)
+    local h = humanoid.Health
+    local m = humanoid.MaxHealth
+    if m <= 0 then m = 1 end
+    local pct = math.clamp(h / m, 0, 1)
+    hpFill.Size = UDim2.fromScale(pct, 1)
+    hpLabel.Text = string.format("HP: %d / %d", math.max(0, math.floor(h)), math.floor(m))
+    -- Red when low, orange mid, green when healthy.
+    if pct < 0.3 then
+        hpFill.BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+    elseif pct < 0.6 then
+        hpFill.BackgroundColor3 = Color3.fromRGB(230, 140, 60)
+    else
+        hpFill.BackgroundColor3 = Color3.fromRGB(120, 200, 90)
+    end
+end
+
+local function bindCharacter(character: Model)
+    local humanoid = character:WaitForChild("Humanoid", 5) :: Humanoid?
+    if not humanoid then return end
+    refreshHp(humanoid)
+    humanoid.HealthChanged:Connect(function() refreshHp(humanoid) end)
+    humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function() refreshHp(humanoid) end)
+end
+
+if LocalPlayer.Character then bindCharacter(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(bindCharacter)
 
 Remotes.get(Constants.REMOTES.WispRosterChanged).OnClientEvent:Connect(function(ownedIds)
     wispCount = (typeof(ownedIds) == "table") and #ownedIds or 0

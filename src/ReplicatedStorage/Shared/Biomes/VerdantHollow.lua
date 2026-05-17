@@ -1,9 +1,9 @@
 return {
     id = "verdant_hollow",
     displayName = "Verdant Hollow",
-    center = Vector3.new(220, 4, 60),
-    radius = 50,
-    nodeCount = 16,
+    center = Vector3.new(290, 4, 100),
+    radius = 80,
+    nodeCount = 22,
     nodeColor = Color3.fromRGB(140, 255, 170),
     nodeMaterial = Enum.Material.Neon,
     nodeShape = Enum.PartType.Cylinder,

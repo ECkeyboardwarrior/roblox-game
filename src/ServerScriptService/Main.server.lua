@@ -25,6 +25,7 @@ local WispService       = require(Services:WaitForChild("WispService"))
 local AbilityService    = require(Services:WaitForChild("AbilityService"))
 local EssenceService    = require(Services:WaitForChild("EssenceService"))
 local ShopService       = require(Services:WaitForChild("ShopService"))
+local MobService        = require(Services:WaitForChild("MobService"))
 
 -- Build the world FIRST so EssenceService's WorldTree proximity-prompt attaches
 -- to the freshly-built tree (and so players spawn into a populated map).
@@ -36,6 +37,7 @@ WispService.start()
 AbilityService.start()
 EssenceService.start()
 ShopService.start()
+MobService.start()
 
 local function onPlayerAdded(player: Player)
     -- Load (or create) the player's profile first; everything else depends on it.

@@ -31,7 +31,7 @@ Constants.HARVEST_RANGE = 18           -- max studs between player and node for 
 Constants.HARVEST_COOLDOWN = 0.15      -- seconds between staff swings (server-validated)
 Constants.NODE_RESPAWN_TIME = 3        -- seconds for an essence node to come back
 Constants.NODE_BASE_ESSENCE = 5        -- essence yield per harvest before staff/wisp multipliers
-Constants.DEPOSIT_RANGE = 10           -- studs from World Tree required to deposit
+Constants.DEPOSIT_RANGE = 28           -- studs from World Tree required to deposit (trunk is tall, so range must reach players at ground level)
 Constants.DEPOSIT_FULL_BONUS = 1.25    -- multiplier applied when depositing a >=90% full lantern
 
 -- DataStore.
@@ -51,6 +51,8 @@ Constants.REMOTES = {
     RequestAbility  = "RequestAbility",      -- client -> server: fire wisp ability
     AbilityFeedback = "AbilityFeedback",     -- server -> client: ability fired, with metadata for VFX
     HarvestRejected = "HarvestRejected",     -- server -> client: harvest blocked (e.g. locked biome)
+    MobDamaged      = "MobDamaged",          -- server -> client: a mob took damage (for floating numbers)
+    MobKilled       = "MobKilled",           -- server -> client: a mob died (drop loot, play VFX)
 }
 
 -- Wisp abilities. Each entry is the per-wisp tuning for active abilities.

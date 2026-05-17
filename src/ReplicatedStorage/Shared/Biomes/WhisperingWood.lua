@@ -1,9 +1,9 @@
 return {
     id = "whispering_wood",
     displayName = "Whispering Wood",
-    center = Vector3.new(80, 4, 260),
-    radius = 60,
-    nodeCount = 18,
+    center = Vector3.new(110, 4, 340),
+    radius = 95,
+    nodeCount = 26,
     nodeColor = Color3.fromRGB(200, 130, 200),
     nodeMaterial = Enum.Material.Neon,
     nodeShape = Enum.PartType.Cylinder,
