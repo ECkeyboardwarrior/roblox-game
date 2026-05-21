@@ -41,6 +41,35 @@ local FOREST_TEMPLATE_SCALE_MIN = 0.4  -- imported toolbox trees can be huge —
 local FOREST_TEMPLATE_SCALE_MAX = 0.7
 
 -- =========================================================================
+-- Terrain hills — give the world real volume instead of a flat plane.
+-- Rolling hills are generated from layered Perlin noise across the
+-- "wilderness" (everything that ISN'T a walkable flat zone). Spawn plaza,
+-- paths, and biome interiors stay flat & walkable; hills ramp up smoothly
+-- from their edges so there are never any cliffs. Tune these, then F5.
+-- =========================================================================
+local TERRAIN_ENABLED = true        -- master switch for the rolling-hill terrain
+local TERRAIN_CELL = 12             -- grid resolution in studs (smaller = smoother + slower)
+local TERRAIN_BASE_Y = 2            -- ground height at flat-zone edges (matches MainGround top)
+local TERRAIN_FLOOR_Y = -2          -- terrain columns fill down to here (sits over the base Part)
+local TERRAIN_HILL_HEIGHT = 26      -- tallest hills rise this many studs above the base
+local TERRAIN_NOISE_SCALE = 230     -- bigger = broader, gentler hills; smaller = bumpier
+local TERRAIN_FLATTEN_BLEND = 42    -- studs over which hills ramp up from a flat-zone edge
+local TERRAIN_FLAT_MARGIN = 22      -- studs of LEVEL ground kept around walkable zones before
+                                    -- hills start, so paths/plaza don't sit in a sunken trench
+
+-- =========================================================================
+-- Grass tufts — short clumps of grass blades scattered across the world.
+-- These are real parts we build & control (height stays short so they never
+-- swallow the player), independent of terrain's un-scriptable Decoration grass.
+-- =========================================================================
+local GRASS_ENABLED = false     -- using Roblox's native terrain tall grass instead of code tufts
+local GRASS_TUFT_TARGET = 550   -- how many grass clumps to scatter
+local GRASS_BLADES_MIN = 3
+local GRASS_BLADES_MAX = 5
+local GRASS_HEIGHT_MIN = 1.3
+local GRASS_HEIGHT_MAX = 2.2    -- keep low: ~shin/knee height, never engulfing
+
+-- =========================================================================
 -- Clearings — locations that must stay free of trees/clutter so players can
 -- walk and interact (spawn plaza, cottage doorways, boss dens, shop NPCs, etc.)
 -- =========================================================================
@@ -167,7 +196,12 @@ local function makeSpawn()
         if s:IsA("SpawnLocation") then s:Destroy() end
     end
 
-    local spawnPos = Vector3.new(0, 4, 30)  -- 30 studs south of WorldTree
+    -- 100 studs south of the WorldTree. MUST stay clear of the tree's fractal
+    -- roots, which are CanCollide cylinders that sprawl ~35-44 studs out from
+    -- the trunk at near-ground height. Spawning at z=30 (old value) put players
+    -- on top of a root, which is why the character looked buried. From here you
+    -- get a clean, head-on view of the whole tree when you spawn.
+    local spawnPos = Vector3.new(0, 4, 100)
     local pad = Instance.new("SpawnLocation")
     pad.Name = "SpiritGroveSpawn"
     pad.Anchored = true
@@ -226,7 +260,7 @@ local function makeGround(): Folder
     ground.Size = Vector3.new(MAP_HALF * 2 + 200, GROUND_THICKNESS, MAP_HALF * 2 + 200)
     ground.Position = Vector3.new(0, 0, 0)
     ground.Material = Enum.Material.Grass
-    ground.Color = Color3.fromRGB(70, 100, 65)
+    ground.Color = Color3.fromRGB(92, 132, 70)  -- matches terrain Grass tint so plaza blends into hills
     ground.TopSurface = Enum.SurfaceType.Smooth
     ground.BottomSurface = Enum.SurfaceType.Smooth
     ground.Parent = folder
@@ -242,80 +276,115 @@ end
 -- carpet of grass.
 -- =========================================================================
 
-local function makeLandscape(pathPositions: { Vector3 })
+-- Layered Perlin noise -> a smooth height factor in [0,1] for rolling hills.
+-- math.noise is deterministic, so the world looks identical every run.
+local function noiseHeight(x: number, z: number): number
+    local s = TERRAIN_NOISE_SCALE
+    local n = math.noise(x / s, z / s) * 1.0
+        + math.noise(x / (s * 0.5) + 11.3, z / (s * 0.5) + 7.7) * 0.45
+        + math.noise(x / (s * 0.22) + 23.1, z / (s * 0.22) + 17.9) * 0.18
+    n = n / 1.63
+    n = math.clamp(n + 0.5, 0, 1)   -- math.noise is ~[-0.5,0.5]; shift to [0,1]
+    return n * n * (3 - 2 * n)      -- smoothstep: broad flat valleys, rounded hilltops
+end
+
+-- Build the rolling-hill terrain. Hills only rise in the "wilderness"; spawn
+-- plaza, paths, and biome interiors are left flat & walkable (we skip them
+-- entirely so cobblestone tiles / pads / biome floors are never buried).
+local function makeTerrainLandscape(pathPositions: { Vector3 })
+    if not TERRAIN_ENABLED then
+        print("[WorldBuilder] Terrain hills disabled via TERRAIN_ENABLED.")
+        return
+    end
+
     local terrain = Workspace.Terrain
 
-    -- Helper: is this candidate position safe to modify?
-    -- Excludes biome interiors (+ buffer), paths, clearings, and a wider zone
-    -- around the WorldTree clearing.
-    local function isLandscapableSpot(pos: Vector3, hillRadius: number): boolean
-        local nearBiomeDist, nearestBiome = distanceToAnyBiome(pos)
-        if nearestBiome and nearBiomeDist < nearestBiome.radius + hillRadius + 6 then
-            return false
+    -- NOTE: the tall 3D grass blades are controlled by Terrain.Decoration, which
+    -- Roblox does NOT allow scripts to change (assigning it errors). It must be
+    -- unchecked by hand once in Studio: select Workspace > Terrain, then untick
+    -- "Decoration" in the Properties panel. It saves with the place, so it's a
+    -- one-time step. Nothing to do here in code.
+
+    -- Warmer, more natural material tints (wrapped: API is occasionally gated).
+    pcall(function()
+        terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(92, 132, 70))
+        terrain:SetMaterialColor(Enum.Material.Grass,      Color3.fromRGB(92, 132, 70))
+        terrain:SetMaterialColor(Enum.Material.Ground,     Color3.fromRGB(112, 92, 66))
+        terrain:SetMaterialColor(Enum.Material.Rock,       Color3.fromRGB(108, 108, 114))
+    end)
+
+    local cell = TERRAIN_CELL
+    local half = MAP_HALF
+
+    -- Flat ring radius for each biome (a touch beyond the gameplay radius so the
+    -- colored biome floor + decor sit on level ground).
+    local biomeFlatR: { number } = {}
+    for i, b in BIOMES do
+        biomeFlatR[i] = b.radius * 1.15
+    end
+
+    -- Distance (studs) from the nearest flat zone edge. <= 0 means this spot is
+    -- inside a flat/walkable zone, so we leave it flat (skip terrain here).
+    local function flatDistance(x: number, z: number): number
+        local best = math.huge
+        for _, c in clearings do
+            local dx, dz = x - c.center.X, z - c.center.Z
+            local d = math.sqrt(dx * dx + dz * dz) - c.radius
+            if d <= 0 then return d end
+            if d < best then best = d end
         end
-        if inAnyClearing(pos) then return false end
-        -- Path proximity
-        for _, tilePos in pathPositions do
-            local dx = pos.X - tilePos.X
-            local dz = pos.Z - tilePos.Z
-            if dx * dx + dz * dz < (hillRadius + 6) * (hillRadius + 6) then
-                return false
+        for i, b in BIOMES do
+            local dx, dz = x - b.center.X, z - b.center.Z
+            local d = math.sqrt(dx * dx + dz * dz) - biomeFlatR[i]
+            if d <= 0 then return d end
+            if d < best then best = d end
+        end
+        for _, tp in pathPositions do
+            local dx, dz = x - tp.X, z - tp.Z
+            local d = math.sqrt(dx * dx + dz * dz) - 10
+            if d <= 0 then return d end
+            if d < best then best = d end
+        end
+        return best
+    end
+
+    local written = 0
+    for x = -half, half, cell do
+        for z = -half, half, cell do
+            local fd = flatDistance(x, z)
+            if fd <= 0 then continue end   -- flat/walkable zone; leave the base floor
+
+            -- Keep a LEVEL grassy apron (same elevation as the walkable ground) for
+            -- TERRAIN_FLAT_MARGIN studs, THEN ramp the hills up beyond it — so paths
+            -- and the plaza sit level with the grass next to them, not in a trench.
+            local rampDist = fd - TERRAIN_FLAT_MARGIN
+            local blend = (rampDist <= 0) and 0 or math.clamp(rampDist / TERRAIN_FLATTEN_BLEND, 0, 1)
+            local h = TERRAIN_BASE_Y + noiseHeight(x, z) * TERRAIN_HILL_HEIGHT * blend
+
+            -- Material by elevation, with a second noise channel for surface variety.
+            local rise = h - TERRAIN_BASE_Y
+            local mvar = math.noise(x / 55 + 100, z / 55 + 100)
+            -- Grass base: shows Roblox's tall grass decoration on the hills (needs
+            -- Workspace > Terrain > Decoration enabled, which is the default).
+            local mat = Enum.Material.Grass
+            if rise > 17 then
+                mat = Enum.Material.Rock
+            elseif rise > 9 then
+                mat = (mvar > 0.05) and Enum.Material.Rock or Enum.Material.Ground
+            elseif mvar > 0.27 then
+                mat = Enum.Material.Ground
             end
+
+            local height = h - TERRAIN_FLOOR_Y
+            local cy = (h + TERRAIN_FLOOR_Y) / 2
+            terrain:FillBlock(CFrame.new(x, cy, z), Vector3.new(cell, height, cell), mat)
+
+            written += 1
+            if written % 700 == 0 then task.wait() end   -- yield so the build never hangs
         end
-        return true
     end
 
-    local rng = rngOf(4242)  -- different seed so hills don't align with forest
-
-    -- ---------- Grass hills ----------
-    -- Hills are domes, not balls — center is BELOW ground so the top bulges
-    -- only ~r * 0.4 studs above the floor. Max visible height ~8 studs.
-    local hillsPlaced = 0
-    for _ = 1, 100 do
-        if hillsPlaced >= 30 then break end
-        local x = rng:NextNumber(-MAP_HALF + 50, MAP_HALF - 50)
-        local z = rng:NextNumber(-MAP_HALF + 50, MAP_HALF - 50)
-        local r = rng:NextNumber(8, 16)
-        local pos = Vector3.new(x, 0, z)
-        if not isLandscapableSpot(pos, r) then continue end
-
-        -- Sink the ball half its radius below ground -> visible dome only.
-        local centerY = -r * 0.55
-        terrain:FillBall(Vector3.new(x, centerY, z), r, Enum.Material.Grass)
-        -- Subtle LeafyGrass cap for variety on larger hills
-        if r > 13 then
-            terrain:FillBall(Vector3.new(x, centerY + r * 0.65, z), r * 0.5, Enum.Material.LeafyGrass)
-        end
-        hillsPlaced += 1
-    end
-
-    -- ---------- Dirt / mud patches ----------
-    local patches = 0
-    for _ = 1, 60 do
-        if patches >= 25 then break end
-        local x = rng:NextNumber(-MAP_HALF + 30, MAP_HALF - 30)
-        local z = rng:NextNumber(-MAP_HALF + 30, MAP_HALF - 30)
-        local r = rng:NextNumber(8, 16)
-        local pos = Vector3.new(x, 0, z)
-        if not isLandscapableSpot(pos, r) then continue end
-
-        -- Low, flat patches just at ground level.
-        local material = (rng:NextNumber() < 0.6) and Enum.Material.Ground or Enum.Material.Mud
-        terrain:FillCylinder(CFrame.new(x, 1.5, z), 1.6, r, material)
-        patches += 1
-    end
-
-    -- ---------- A few small sand spots near origin (path-adjacent feel) ----------
-    for _ = 1, 8 do
-        local x = rng:NextNumber(-90, 90)
-        local z = rng:NextNumber(-90, 90)
-        if Vector3.new(x, 0, z).Magnitude < 70 then continue end
-        local pos = Vector3.new(x, 0, z)
-        if not isLandscapableSpot(pos, 6) then continue end
-        terrain:FillCylinder(CFrame.new(x, 1.4, z), 1.2, rng:NextNumber(4, 7), Enum.Material.Sand)
-    end
-
-    print(("[WorldBuilder] Landscape: %d hills, %d ground patches."):format(hillsPlaced, patches))
+    print(("[WorldBuilder] Terrain hills: %d cells filled (cell=%d studs)."):format(written, cell))
 end
 
 local function makeBiomeGroundPatch(biome: Biome, parent: Instance)
@@ -935,10 +1004,11 @@ local function scatterForest(parent: Instance, rng: Random, pathPositions: { Vec
         return pos, nearestBiome
     end
 
-    -- Optional: use raycast to snap Y to actual ground height (handles terrain
-    -- slopes once trees-on-mountains becomes a thing). Disabled by default since
-    -- our ground is flat and raycasting 1000+ times slows the build.
-    local USE_RAYCAST = false
+    -- Raycast each tree/clutter spot down to the real surface so they sit on
+    -- the rolling hills instead of floating/sinking. Terrain is built before
+    -- this pass, so the ray hits the actual hill height. Tree counts are modest
+    -- now, so the extra raycasts are cheap.
+    local USE_RAYCAST = true
     local function groundY(x: number, z: number): number
         if USE_RAYCAST then
             local g = groundedPosition(x, z)
@@ -1015,6 +1085,7 @@ local function scatterForest(parent: Instance, rng: Random, pathPositions: { Vec
         if wandererPlaced >= FOREST_WANDERER_TARGET then break end
         local pos, nearestBiome = tryPick(FOREST_BIOME_MARGIN)
         if not pos then continue end
+        pos = Vector3.new(pos.X, groundY(pos.X, pos.Z), pos.Z)  -- snap onto the hills
         placeTree(pos, nearestBiome, rng:NextNumber(1.0, 1.4))
         wandererPlaced += 1
     end
@@ -1025,6 +1096,7 @@ local function scatterForest(parent: Instance, rng: Random, pathPositions: { Vec
         if clutterPlaced >= FOREST_CLUTTER_TARGET then break end
         local pos, _ = tryPick(20)
         if not pos then continue end
+        pos = Vector3.new(pos.X, groundY(pos.X, pos.Z), pos.Z)  -- snap onto the hills
         local roll = rng:NextNumber()
         if roll < 0.55 then
             makeBush(pos, parent, rng)
@@ -2254,6 +2326,93 @@ local function tryConfigureStreaming()
     end)
 end
 
+-- A short clump of grass blades (thin parts). Height is code-controlled and
+-- kept low, so unlike terrain's tall Decoration grass it never swallows you.
+local function makeGrassTuft(position: Vector3, parent: Instance, rng: Random)
+    local bladeCount = rng:NextInteger(GRASS_BLADES_MIN, GRASS_BLADES_MAX)
+    for _ = 1, bladeCount do
+        local h = rng:NextNumber(GRASS_HEIGHT_MIN, GRASS_HEIGHT_MAX)
+        local blade = Instance.new("Part")
+        blade.Anchored = true
+        blade.CanCollide = false
+        blade.CanQuery = false
+        blade.CastShadow = false
+        blade.Size = Vector3.new(0.22, h, 0.22)
+        local ang = rng:NextNumber(0, math.pi * 2)
+        local spread = rng:NextNumber(0, 0.9)
+        local lean = math.rad(rng:NextNumber(0, 16))
+        local base = position + Vector3.new(math.cos(ang) * spread, h / 2, math.sin(ang) * spread)
+        blade.CFrame = CFrame.new(base) * CFrame.Angles(lean * math.cos(ang), ang, lean * math.sin(ang))
+        local j = rng:NextInteger(-14, 14)
+        blade.Color = Color3.fromRGB(
+            math.clamp(92 + j, 0, 255),
+            math.clamp(140 + j, 0, 255),
+            math.clamp(72 + j, 0, 255)
+        )
+        blade.Material = Enum.Material.Grass  -- on a Part this is just a texture, no 3D blades
+        blade.Parent = parent
+    end
+end
+
+-- Scatter short grass tufts across the world: lush grassy areas, the plaza, and
+-- alongside the paths. Skips the bare spawn pad, the path stones themselves, and
+-- the lava/ice biomes (which aren't grassy). Tufts sit on the real surface via raycast.
+local function scatterGrass(rng: Random, pathPositions: { Vector3 })
+    if not GRASS_ENABLED then
+        print("[WorldBuilder] Grass tufts disabled via GRASS_ENABLED.")
+        return
+    end
+
+    destroyIfExists("GrassField")
+    local field = Instance.new("Folder")
+    field.Name = "GrassField"
+    field.Parent = Workspace
+
+    local placed = 0
+    for _ = 1, GRASS_TUFT_TARGET * 2 do
+        if placed >= GRASS_TUFT_TARGET then break end
+        local x = rng:NextNumber(-MAP_HALF + 20, MAP_HALF - 20)
+        local z = rng:NextNumber(-MAP_HALF + 20, MAP_HALF - 20)
+
+        -- keep the cobblestone spawn pad bare (spawn pad center is 0, 100)
+        local dxs, dzs = x - 0, z - 100
+        if dxs * dxs + dzs * dzs < 144 then continue end
+
+        -- skip lava / ice biomes (not grassy)
+        local skip = false
+        for _, b in BIOMES do
+            if b.decorStyle == "ember" or b.decorStyle == "frostpeak" then
+                local dx, dz = x - b.center.X, z - b.center.Z
+                local rr = b.radius * 1.1
+                if dx * dx + dz * dz < rr * rr then
+                    skip = true
+                    break
+                end
+            end
+        end
+        if skip then continue end
+
+        -- don't poke up through the path stones
+        local onPath = false
+        for _, tp in pathPositions do
+            local dx, dz = x - tp.X, z - tp.Z
+            if dx * dx + dz * dz < 9 then
+                onPath = true
+                break
+            end
+        end
+        if onPath then continue end
+
+        local g = groundedPosition(x, z)
+        if not g then continue end
+        makeGrassTuft(g, field, rng)
+        placed += 1
+        if placed % 150 == 0 then task.wait() end
+    end
+
+    print(("[WorldBuilder] Grass: %d tufts placed."):format(placed))
+end
+
 function WorldBuilder.start()
     -- Wipe any previously-generated terrain so rebuilds are idempotent.
     Workspace.Terrain:Clear()
@@ -2286,12 +2445,13 @@ function WorldBuilder.start()
     end
 
     local pathPositions = buildAllPaths(decor, rng)
-    makeLandscape(pathPositions)
+    makeTerrainLandscape(pathPositions)
     if FOREST_ENABLED then
         scatterForest(decor, rng, pathPositions)
     else
         print("[WorldBuilder] Forest disabled via FOREST_ENABLED constant.")
     end
+    scatterGrass(rng, pathPositions)
     makeFireflies(decor)
 
     print(string.format("[WorldBuilder] Built %d biome(s) + paths (%d tiles), forest, decor.",
